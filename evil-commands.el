@@ -2061,12 +2061,10 @@ The default for width is the value of `fill-column'."
             (insert-char char 1)))
         (goto-char (max beg (1- end))))))))
 
-(evil-define-command evil-paste-before
-  (count &optional register yank-handler)
-  "Pastes the latest yanked text before the cursor position.
-The return value is the yanked text."
-  :suppress-operator t
-  (interactive "*P<x>")
+(defun evil--paste (count register yank-handler side)
+  "Paste contents of REGISTER COUNT times.
+If there is no yank-handler, only `push-mark' and `insert-for-yank'.
+Otherwise, prepare the text and the context for pasting, and `insert-for-yank'."
   (setq count (prefix-numeric-value count))
   (if (evil-visual-state-p)
       (evil-visual-paste count register)
@@ -2078,90 +2076,59 @@ The return value is the yanked text."
                                (when (stringp text)
                                  (car-safe (get-text-property
                                             0 'yank-handler text)))))
-             (opoint (point)))
+             (opoint (point))
+             (this-command (cl-case side
+                             ('before #'evil-paste-before)
+                             ('after #'evil-paste-after)))
+             beginning-point)
         (when evil-paste-clear-minibuffer-first
           (delete-minibuffer-contents)
           (setq evil-paste-clear-minibuffer-first nil))
         (when text
           (if (functionp yank-handler)
-              (let ((evil-paste-count count)
-                    ;; for non-interactive use
-                    (this-command #'evil-paste-before))
-                (push-mark opoint t)
+              (let ((evil-paste-count count))
+                (push-mark opoint t) ;; <- investigate
                 (insert-for-yank text))
             ;; no yank-handler, default
             (when (vectorp text)
               (setq text (evil-vector-to-string text)))
             (set-text-properties 0 (length text) nil text)
-            (push-mark opoint t)
+            (when (and (eq side 'after) (not (eolp))) (forward-char))
+            (setq beginning-point (point))
+            (push-mark beginning-point t)
             (dotimes (_ (or count 1))
               (insert-for-yank text))
             (setq evil-last-paste
-                  (list #'evil-paste-before
+                  (list this-command
                         count
                         opoint
-                        opoint    ; beg
+                        beginning-point
                         (point))) ; end
             (evil-set-marker ?\[ opoint)
             (evil-set-marker ?\] (1- (point)))
-            (when (and evil-move-cursor-back
-                       (> (length text) 0))
-              (backward-char))))
+            (when (or (and (eq 'before side) (> (length text) 0))
+                      (and (eq 'after side) (evil-normal-state-p)))
+              (evil-move-cursor-back))))
         ;; no paste-pop after pasting from a register
         (when register
           (setq evil-last-paste nil))
         (and (> (length text) 0) text)))))
 
-(evil-define-command evil-paste-after
+(evil-define-command evil-paste-before
   (count &optional register yank-handler)
-  "Pastes the latest yanked text behind point.
+  "Paste register contents before the cursor position.
 The return value is the yanked text."
   :suppress-operator t
   (interactive "*P<x>")
-  (setq count (prefix-numeric-value count))
-  (if (evil-visual-state-p)
-      (evil-visual-paste count register)
-    (evil-with-undo
-      (let* ((text (if register
-                       (evil-get-register register)
-                     (current-kill 0)))
-             (yank-handler (or yank-handler
-                               (when (stringp text)
-                                 (car-safe (get-text-property
-                                            0 'yank-handler text)))))
-             (opoint (point)))
-        (when text
-          (if (functionp yank-handler)
-              (let ((evil-paste-count count)
-                    ;; for non-interactive use
-                    (this-command #'evil-paste-after))
-                (insert-for-yank text))
-            ;; no yank-handler, default
-            (when (vectorp text)
-              (setq text (evil-vector-to-string text)))
-            (set-text-properties 0 (length text) nil text)
-            (unless (eolp) (forward-char))
-            (push-mark (point) t)
-            ;; TODO: Perhaps it is better to collect a list of all
-            ;; (point . mark) pairs to undo the yanking for COUNT > 1.
-            ;; The reason is that this yanking could very well use
-            ;; `yank-handler'.
-            (let ((beg (point)))
-              (dotimes (_ (or count 1))
-                (insert-for-yank text))
-              (setq evil-last-paste
-                    (list #'evil-paste-after
-                          count
-                          opoint
-                          beg       ; beg
-                          (point))) ; end
-              (evil-set-marker ?\[ beg)
-              (evil-set-marker ?\] (1- (point)))
-              (when (evil-normal-state-p)
-                (evil-move-cursor-back)))))
-        (when register
-          (setq evil-last-paste nil))
-        (and (> (length text) 0) text)))))
+  (evil--paste count register yank-handler 'before))
+
+(evil-define-command evil-paste-after
+  (count &optional register yank-handler)
+  "Paste register contents after the cursor position.
+The return value is the yanked text."
+  :suppress-operator t
+  (interactive "*P<x>")
+  (evil--paste count register yank-handler 'after))
 
 (evil-define-command evil-visual-paste (count &optional register)
   "Paste over Visual selection."
