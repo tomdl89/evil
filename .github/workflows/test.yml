@@ -27,7 +27,7 @@ jobs:
 
     - name: Run tests
       run: |
-        make test
+        "nix-shell --command 'make test'"
 
     - name: Print results
       if: ${{ always() }}
