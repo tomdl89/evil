@@ -3547,12 +3547,9 @@ resp.  after executing the command."
     (evil-repeat-record (this-command-keys))
     (evil-clear-command-keys))
    ((and (evil-operator-state-p) (eq flag 'post))
-    ;; The value of (this-command-keys) at this point should be the
-    ;; key-sequence that called the last command that finished the
-    ;; search, usually RET. Therefore this key-sequence will be
-    ;; recorded in the post-command of the operator. Alternatively we
-    ;; could do it here.
-    (evil-repeat-record (evil-ex-pattern-regex evil-ex-search-pattern)))
+    (evil-repeat-record (evil-ex-pattern-regex evil-ex-search-pattern))
+    ;; Previous comment claimed this wasn't necessary. See git-blame for details.
+    (evil-repeat-record [return]))
    (t (evil-repeat-motion flag))))
 
 (evil-define-motion evil-ex-search-forward (count)
