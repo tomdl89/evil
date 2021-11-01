@@ -2059,6 +2059,14 @@ or a marker object pointing nowhere."
                                   (marker-position (cdr entry))))))))
 (put 'evil-swap-out-markers 'permanent-local-hook t)
 
+(defun evil--escape-magic (string)
+  "Escape characters in STRING which are considered magic, according to `evil-magic'."
+  (if (and evil-escape-magic-on-ex-paste evil-ex-search-vim-style-regexp)
+      (replace-regexp-in-string (format "\\(%s\\)" (evil-get-magic evil-magic))
+                                "\\\\\\1"
+                                string)
+    string))
+
 (defun evil--eval-expr (input)
   "Eval INPUT and return stringified result, if of a suitable type.
 If INPUT starts with a number, +, -, or . use `calc-eval' instead."
@@ -2148,23 +2156,27 @@ The following special registers are supported.
              ((eq register ?\C-W)
               (unless (evil-ex-p)
                 (user-error "Register <C-w> only available in ex state"))
-              (with-current-buffer evil-ex-current-buffer
-                (thing-at-point 'evil-word)))
+              (evil--escape-magic
+               (with-current-buffer evil-ex-current-buffer
+                 (thing-at-point 'evil-word))))
              ((eq register ?\C-A)
               (unless (evil-ex-p)
                 (user-error "Register <C-a> only available in ex state"))
-              (with-current-buffer evil-ex-current-buffer
-                (thing-at-point 'evil-WORD)))
+              (evil--escape-magic
+               (with-current-buffer evil-ex-current-buffer
+                 (thing-at-point 'evil-WORD))))
              ((eq register ?\C-O)
               (unless (evil-ex-p)
                 (user-error "Register <C-o> only available in ex state"))
-              (with-current-buffer evil-ex-current-buffer
-                (thing-at-point 'evil-symbol)))
+              (evil--escape-magic
+               (with-current-buffer evil-ex-current-buffer
+                 (thing-at-point 'evil-symbol))))
              ((eq register ?\C-F)
               (unless (evil-ex-p)
                 (user-error "Register <C-f> only available in ex state"))
-              (with-current-buffer evil-ex-current-buffer
-                (thing-at-point 'filename)))
+              (evil--escape-magic
+               (with-current-buffer evil-ex-current-buffer
+                 (thing-at-point 'filename))))
              ((eq register ?%)
               (or (buffer-file-name (and (evil-ex-p)
                                          (minibufferp)

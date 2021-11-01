@@ -7617,7 +7617,15 @@ if no previous selection")
        ("/\C-rb" [return])
        "Alpha bravo charlie alpha [b]ravo delta bravo delta"
        ("w/\C-r\C-o" [return])
-       "Alpha bravo charlie alpha bravo delta bravo [d]elta"))))
+       "Alpha bravo charlie alpha bravo delta bravo [d]elta")
+      (ert-info ("Respects evil-escape-magic-on-ex-paste")
+        (let ((evil-magic 'very-magic)
+              (evil-ex-search-vim-style-regexp t))
+          (evil-test-buffer
+           :visual-end "}" ;; Treat `>' char normally
+            "[f]oo->bar some other text foo->bar"
+            ("/\C-r\C-a" [return])
+            "foo->bar some other text [f]oo->bar"))))))
 
 (ert-deftest evil-test-ex-search-offset ()
   "Test search offsets."

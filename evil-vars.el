@@ -1185,6 +1185,13 @@ only has influence if the Evil search module is chosen in
                 (const :tag "Nomagic" :value nil)
                 (const :tag "Very nomagic" :value very-nomagic)))
 
+(defcustom evil-escape-magic-on-ex-paste t
+  "Add a backslash before magic characters when pasting (with
+\\<evil-ex-search-keymap>\\[evil-paste-from-register], and \
+specifying a word, WORD, symbol or filename) at ex prompt."
+  :group 'evil
+  :type 'boolean)
+
 (defcustom evil-ex-search-vim-style-regexp nil
   "If non-nil Vim-style backslash codes are supported in search patterns.
 See `evil-transform-vim-style-regexp' for the supported backslash
