@@ -3091,7 +3091,9 @@ The search is unbounded, i.e., the pattern is not wrapped in
                         (xref-backend-identifier-at-point (xref-find-backend)))))
       (condition-case ()
           (progn
-            (xref-find-definitions identifier)
+            ;; Prevent etags from prompting for file name
+            (let ((tags-table-list (or tags-table-list (list default-directory))))
+              (xref-find-definitions identifier))
             t)
         (user-error nil)))))
 
