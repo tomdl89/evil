@@ -4468,9 +4468,11 @@ The \"!\" argument means to sort in reverse order."
         (setq options args)
       (setq args (evil-delimited-arguments args 2)
             ;; Use last search pattern when an empty pattern is provided
-            pat (if (string= (car args) "")
-                    (evil-ex-pattern-regex evil-ex-search-pattern)
-                  (car args))
+            pat (cond ((string= (car args) "")
+                       (evil-ex-pattern-regex evil-ex-search-pattern))
+                      (evil-ex-search-vim-style-regexp
+                       (evil-transform-vim-style-regexp (car args)))
+                      (t (car args)))
             options (cadr args)))
     (cl-loop
      for opt across options do
