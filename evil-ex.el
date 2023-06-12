@@ -725,6 +725,50 @@ keywords and function:
         ',arg-type
         '(,runner ,completer)))))
 
+(defun evil-ex-sort-runner (flag &optional arg)
+  "Run every time :sort args change.
+FLAG is as described at `evil-ex-define-argument-type'.
+ARG is as described at the `sort' argument type definition."
+  (with-selected-window (minibuffer-selected-window)
+    (with-current-buffer evil-ex-current-buffer
+      (cond
+       ((eq flag 'start)
+        (evil-ex-make-hl
+         'evil-ex-substitute
+         :face 'evil-ex-substitute-matches
+         :update-hook #'evil-ex-pattern-update-ex-info
+         :match-hook (and evil-ex-substitute-interactive-replace
+                          #'evil-ex-pattern-update-replacement))
+        (setq flag 'update))
+
+       ((eq flag 'stop)
+        (evil-ex-delete-hl 'evil-ex-substitute))))
+
+    (when (and (eq flag 'update)
+               (not (zerop (length arg))))
+      (condition-case lossage
+          (cl-destructuring-bind (_ pattern) (evil--ex-sort-parse-args arg t)
+            (let* ((range (or (evil-copy-range evil-ex-range)
+                              (evil-range (line-beginning-position)
+                                          (line-end-position)
+                                          'line
+                                          :expanded t))))
+              (evil-expand-range range)
+              (evil-ex-hl-set-region 'evil-ex-substitute
+                                     (evil-range-beginning range)
+                                     (evil-range-end range))
+              (evil-ex-hl-change 'evil-ex-substitute pattern)))
+        (end-of-file
+         (evil-ex-pattern-update-ex-info nil
+                                         "incomplete replacement"))
+        (user-error
+         (evil-ex-pattern-update-ex-info nil
+                                         (format "%s" lossage)))))))
+
+(evil-ex-define-argument-type sort
+  "Zero or more options, maybe followed by an (incomplete) search pattern"
+  :runner evil-ex-sort-runner)
+
 (evil-ex-define-argument-type file
   "Handle a file argument."
   :collection read-file-name-internal)

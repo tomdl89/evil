@@ -4435,15 +4435,15 @@ Default position is the beginning of the buffer."
         (message "\"%s\" %d %slines --%s--" file nlines readonly perc)
       (message "%d lines --%s--" nlines perc))))
 
-(defun evil--ex-sort-parse-args (args)
-  "Parse ARGS and return a list of options and search pattern."
+(defun evil--ex-sort-parse-args (args incrementalp)
+  "Parse ARGS and return a list of options and search pattern.
+If INCREMENTALP is non-nil, accept pattern without closing delim."
   (let ((args (string-trim (or args "")))
-        opts pattern)
+        opts pattern delim)
     (while (not (string= "" args))
       (let* ((c1 (aref args 0))
              (rest-args (substring args 1))
-             (c1-rq (regexp-quote (string c1)))
-             (regexp (format "%s\\(\\(?:\\\\.\\|[^%c]\\)*\\)%s" c1-rq c1 c1-rq)))
+             (regexp (format "\\`\\(?:\\\\.\\|[^%c]\\)+" c1)))
         (cond
          ;; Valid option (supported after pattern too for compatibility)
          ((and (memq c1 '(?i ?n ?x ?o ?b ?u ?r))
@@ -4453,14 +4453,19 @@ Default position is the beginning of the buffer."
          ;; Ignore spaces
          ((= ?\s c1) (setq args rest-args))
          ;; Valid pattern
-         ((and (not pattern) (string-match regexp args))
-          (setq pattern (match-string 1 args)
-                args (substring args (+ 2 (length pattern)))))
+         ((and (not pattern) (string-match regexp rest-args))
+          (setq pattern (match-string 0 rest-args)
+                delim c1
+                args (substring args (1+ (length pattern)))))
+         ((and pattern delim (= delim c1)) (setq args rest-args delim nil))
+         (incrementalp (setq args rest-args))
          (t (user-error "Invalid argument: %c" c1)))))
-    (list opts pattern)))
+    (if (or (not delim) incrementalp)
+        (list opts pattern)
+      (user-error "Invalid argument or unmatched delimeter: %c" delim))))
 
 (defvar sort-fold-case)
-(evil-define-operator evil-ex-sort (beg end &optional args reverse)
+(evil-define-operator evil-ex-sort  (beg end &optional options pattern reverse)
   "The Ex sort command.
 \[BEG,END]sort[!] [b][i][n][o][r][u][x] [/PATTERN/]
 The following options are supported:
@@ -4480,79 +4485,78 @@ If the pattern is empty, the last search pattern is used instead.
 The \"!\" argument means to sort in reverse order."
   :motion mark-whole-buffer
   :move-point nil
-  (interactive "<r><a><!>")
-  (cl-destructuring-bind (options pattern) (evil--ex-sort-parse-args args)
-    (let ((inhibit-field-text-motion t)
-          sort-fold-case unique base sort-pattern)
-      (setq pattern (cond
-                     ((string= "" pattern)
-                      ;; Use last search pattern when empty pattern is provided
-                      (evil-ex-pattern-regex evil-ex-search-pattern))
-                     (evil-ex-search-vim-style-regexp
-                      (evil-transform-vim-style-regexp pattern))
-                     (t pattern)))
-      (dolist (opt options)
-        (cl-case opt
-          (?i (setq sort-fold-case t))
-          (?b (setq base 2))
-          (?o (setq base 8))
-          (?n (setq base 10))
-          (?x (setq base 16))
-          (?r (setq sort-pattern t))
-          (?u (setq unique t))))
-      (evil-with-restriction beg end
-        (goto-char beg)
-        (let ((num-re (cl-case base
-                        (2 "[01]+")
-                        (8 "[0-7]+")
-                        (10 "-?[0-9]+")
-                        (16 "\\(-\\)?\\(?:0x\\)?\\([0-9a-f]+\\)")))
-              key-end)
-          (sort-subr
-           reverse
-           #'forward-line
-           #'end-of-line
-           (lambda ()
-             ;; Find the boundary of the key to match on the line
-             (setq key-end (line-end-position))
-             (and (> (length pattern) 0)
-                  ;; When matching a pattern and one doesn't exist on the line,
-                  ;; skip the line
-                  (re-search-forward pattern key-end 'move)
-                  sort-pattern ; Otherwise go to the start of the key
-                  (progn (setq key-end (point))
-                         (goto-char (match-beginning 0))))
-             ;; Return the key for the line when sorting numbers, otherwise let
-             ;; `sort-subr' extract the key
-             (when base
-               (let ((case-fold-search t))
-                 (if (not (re-search-forward num-re key-end t))
-                     ;; When sorting numbers and a number doesn't exist on the
-                     ;; line, place it above all the numeric lines
-                     most-negative-fixnum
-                   (let ((num (string-to-number
-                               (buffer-substring
-                                (match-beginning (if (= base 16) 2 0))
-                                (match-end 0))
-                               base)))
-                     (if (and (= base 16) (match-beginning 1))
-                         (- num)
-                       num))))))
-           ;; Only called when sorting lexicographically
-           (lambda () (goto-char key-end))))
-        (when unique
-          (goto-char (point-min))
-          (let ((case-fold-search sort-fold-case)
-                prev-line-beg)
-            (while (not (eobp))
-              (if (and prev-line-beg
-                       (eq 0 (compare-buffer-substrings
-                              nil prev-line-beg (1- (point))
-                              nil (point) (line-end-position))))
-                  (delete-region (point) (line-beginning-position 2))
-                (setq prev-line-beg (point))
-                (forward-line)))))))
-    (goto-char beg)))
+  (interactive "<r><srt/><!>")
+  (let ((inhibit-field-text-motion t)
+        sort-fold-case unique base sort-pattern)
+    (setq pattern (cond
+                   ((string= "" pattern)
+                    ;; Use last search pattern when empty pattern is provided
+                    (evil-ex-pattern-regex evil-ex-search-pattern))
+                   (evil-ex-search-vim-style-regexp
+                    (evil-transform-vim-style-regexp pattern))
+                   (t pattern)))
+    (dolist (opt options)
+      (cl-case opt
+        (?i (setq sort-fold-case t))
+        (?b (setq base 2))
+        (?o (setq base 8))
+        (?n (setq base 10))
+        (?x (setq base 16))
+        (?r (setq sort-pattern t))
+        (?u (setq unique t))))
+    (evil-with-restriction beg end
+      (goto-char beg)
+      (let ((num-re (cl-case base
+                      (2 "[01]+")
+                      (8 "[0-7]+")
+                      (10 "-?[0-9]+")
+                      (16 "\\(-\\)?\\(?:0x\\)?\\([0-9a-f]+\\)")))
+            key-end)
+        (sort-subr
+         reverse
+         #'forward-line
+         #'end-of-line
+         (lambda ()
+           ;; Find the boundary of the key to match on the line
+           (setq key-end (line-end-position))
+           (and (> (length pattern) 0)
+                ;; When matching a pattern and one doesn't exist on the line,
+                ;; skip the line
+                (re-search-forward pattern key-end 'move)
+                sort-pattern ; Otherwise go to the start of the key
+                (progn (setq key-end (point))
+                       (goto-char (match-beginning 0))))
+           ;; Return the key for the line when sorting numbers, otherwise let
+           ;; `sort-subr' extract the key
+           (when base
+             (let ((case-fold-search t))
+               (if (not (re-search-forward num-re key-end t))
+                   ;; When sorting numbers and a number doesn't exist on the
+                   ;; line, place it above all the numeric lines
+                   most-negative-fixnum
+                 (let ((num (string-to-number
+                             (buffer-substring
+                              (match-beginning (if (= base 16) 2 0))
+                              (match-end 0))
+                             base)))
+                   (if (and (= base 16) (match-beginning 1))
+                       (- num)
+                     num))))))
+         ;; Only called when sorting lexicographically
+         (lambda () (goto-char key-end))))
+      (when unique
+        (goto-char (point-min))
+        (let ((case-fold-search sort-fold-case)
+              prev-line-beg)
+          (while (not (eobp))
+            (if (and prev-line-beg
+                     (eq 0 (compare-buffer-substrings
+                            nil prev-line-beg (1- (point))
+                            nil (point) (line-end-position))))
+                (delete-region (point) (line-beginning-position 2))
+              (setq prev-line-beg (point))
+              (forward-line)))))))
+  (goto-char beg))
 
 ;;; Window navigation
 
