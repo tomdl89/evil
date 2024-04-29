@@ -9990,6 +9990,19 @@ but it works fine in `M-x ert-run-tests-interactively'."
       ("Vj" ":retab" [return])
       "def foo():\n    while True:\n\t\treturn\n")))
 
+(ert-deftest evil-1894 ()
+  "Test visual block append paste."
+  :tags '(evil visual)
+  (let (indent-tabs-mode)
+    (evil-test-buffer
+      "[a]aaaaaaaaaaaa
+bbbbbbbb
+cccc"
+      ("\C-vG$yA       " [escape] "p")
+      "aaaaaaaaaaaaa       [a]aaaaaaaaaaaa
+bbbbbbbb            bbbbbbbb
+cccc                cccc")))
+
 (provide 'evil-tests)
 
 ;;; evil-tests.el ends here
