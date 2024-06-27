@@ -79,6 +79,12 @@ the buffer-local value of HOOK is modified."
   (declare (obsolete evil-with-delay "1.15.0") (indent 2))
   (eval `(evil-with-delay ,condition (,hook ,append ,local ,name) ,form) t))
 
+;; Used to improve performance in macros, :global, and other batch edits
+;; TODO remove this once support for emacs 26 is dropped
+(eval-when-compile
+  (unless (fboundp 'combine-change-calls)
+    (defmacro combine-change-calls (_beg _end &rest body) `(progn ,@body))))
+
 ;;; List functions
 
 (defmacro evil--add-to-alist (alist &rest elements)

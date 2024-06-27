@@ -4247,10 +4247,12 @@ Use `evil-flush-lines' if INVERT is nil, or `evil-keep-lines' if not."
         (setq markers (nreverse markers))
         (unwind-protect
             (evil-with-single-undo
-              (let ((evil--ex-global-active-p t))
-                (dolist (marker markers)
-                  (goto-char marker)
-                  (eval command-form t))))
+              (combine-change-calls (point-min) (point-max)
+                (let ((evil--ex-global-active-p t)
+                      pre-command-hook post-command-hook)
+                  (dolist (marker markers)
+                    (goto-char marker)
+                    (eval command-form t)))))
           ;; ensure that all markers are deleted afterwards,
           ;; even in the event of failure
           (dolist (marker markers)
@@ -4287,11 +4289,13 @@ range. The given argument is passed straight to
     (deactivate-mark)
     (evil-force-normal-state)
     (evil-with-single-undo
-      (dolist (marker markers)
-        (goto-char marker)
-        (ignore-errors (execute-kbd-macro commands))
-        (evil-force-normal-state)
-        (set-marker marker nil)))))
+      (combine-change-calls beg end
+        (let (pre-command-hook post-command-hook)
+          (dolist (marker markers)
+            (goto-char marker)
+            (ignore-errors (execute-kbd-macro commands))
+            (evil-force-normal-state)
+            (set-marker marker nil)))))))
 
 (evil-define-motion evil-goto-char (position)
   "Go to POSITION in the buffer.

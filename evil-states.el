@@ -138,10 +138,6 @@ commands opening a new line."
   (remove-hook 'pre-command-hook #'evil-insert-repeat-hook))
 (put 'evil-insert-repeat-hook 'permanent-local-hook t)
 
-(eval-when-compile
-  ;; TODO remove this once support for emacs 26 is dropped
-  (unless (fboundp 'combine-change-calls)
-    (defmacro combine-change-calls (_beg _end &rest body) `(progn ,@body))))
 (declare-function evil-execute-repeat-info "evil-repeat")
 (defun evil-cleanup-insert-state ()
   "Called when Insert or Replace state is about to be exited.
