@@ -3524,6 +3524,7 @@ transformations, usually `regexp-quote' or `replace-quote'."
           (evil-magic evil-magic)
           (quote (or quote #'identity))
           result stop)
+      (setq evil--substitute-fixed-case (not case-replace))
       (while (and (not stop) str (string-match regexp str))
         (unless (zerop (match-beginning 1))
           (push (substring str 0 (match-beginning 1)) result))
@@ -3687,10 +3688,12 @@ REST is the unparsed remainder of TO."
                                           (?u . evil-upcase-first)
                                           (?U . upcase))))))
                   (list `(,func
-                          (replace-quote
-                           (evil-match-substitute-replacement
-                            ,(car result)
-                            (not case-replace))))
+                          (progn
+                            (setq evil--substitute-fixed-case t)
+                            (replace-quote
+                             (evil-match-substitute-replacement
+                              ,(car result)
+                              (not case-replace)))))
                         (cdr result))))
                ((eq char ?=)
                 (when (or (zerop (length rest))
@@ -3733,7 +3736,7 @@ REST is the unparsed remainder of TO."
 Return a list suitable for `perform-replace' if necessary, the
 original string if not. Currently the following magic characters
 in replacements are supported: 0-9&#lLuUrnbt,
-The magic character , (comma) start an Emacs-lisp expression."
+The magic character , (comma) starts an Emacs-lisp expression."
   (when (stringp to)
     (save-match-data
       (cons 'replace-eval-replacement
@@ -3749,7 +3752,9 @@ replacement text first."
      (funcall (car replacement)
               (cdr replacement)
               0))
-   fixedcase nil string))
+   (or evil--substitute-fixed-case fixedcase)
+   nil
+   string))
 
 ;;; Alignment
 

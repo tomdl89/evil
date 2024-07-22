@@ -8091,7 +8091,7 @@ golf h[o]>tel")))
     (evil-test-buffer
       "[a]bc\niiiXiiiXiiiXiii\n"
       ("\"ayiwj:s/X/\\=@a/g" [return])
-      "abc\n[i]iiabciiiabciiiabciii\n"))
+      "abc\n[i]iiABCiiiABCiiiABCiii\n"))
   (ert-info ("Substitute newlines")
     (evil-test-buffer
       "[a]bc\ndef\nghi\n"

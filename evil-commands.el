@@ -3939,6 +3939,10 @@ replacements made or found."
                    nreplaced
                    (if (/= nreplaced 1) "s" ""))))))
 
+(defvar evil--substitute-fixed-case (not case-replace)
+  "Whether the replacement for a substitution respects case.
+By default, the oposite of `case-replace', but can be overridden by flags.")
+
 (evil-define-operator evil-ex-substitute
   (beg end pattern replacement flags)
   "The Ex substitute command.
@@ -4014,7 +4018,7 @@ replacements made or found."
                           (when (member response '(?y ?a ?l))
                             (unless count-only
                               (set-match-data match-data)
-                              (replace-match next-replacement (not case-replace)))
+                              (replace-match next-replacement evil--substitute-fixed-case))
                             (cl-incf nreplaced)
                             (evil-ex-hl-set-region
                              'evil-ex-substitute
@@ -4032,7 +4036,7 @@ replacements made or found."
                            (if (stringp replacement) replacement
                              (funcall (car replacement) (cdr replacement) nreplaced))))
                       (set-match-data match-data)
-                      (replace-match next-replacement (not case-replace))))
+                      (replace-match next-replacement evil--substitute-fixed-case)))
                   (cl-incf nreplaced))
                 (setq last-point (point))
                 (cond ((>= (point) end-marker)
@@ -4069,7 +4073,8 @@ replacements made or found."
 
     (if (and (= nreplaced 0) evil-ex-point)
         (goto-char evil-ex-point)
-      (evil-first-non-blank))))
+      (evil-first-non-blank)))
+  (setq evil--substitute-fixed-case (not case-replace)))
 
 (evil-define-operator evil-ex-repeat-substitute (beg end flags)
   "Repeat last substitute command.
