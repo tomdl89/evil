@@ -422,7 +422,7 @@ This function is usually called from `after-change-functions'
 hook. If BEG is non-nil (which is the case when called from
 `after-change-functions'), then an error description is shown
 in case of incomplete or unknown commands."
-  (when (and beg (eq this-command #'self-insert-command))
+  (when (eq this-command #'self-insert-command)
     (let ((cmd (lookup-key evil-ex-shortcut-map (minibuffer-contents-no-properties))))
       (when (commandp cmd)
         (setq evil--ex-expression `(call-interactively #',cmd))
