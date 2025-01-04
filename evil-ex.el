@@ -422,7 +422,7 @@ This function is usually called from `after-change-functions'
 hook. If BEG is non-nil (which is the case when called from
 `after-change-functions'), then an error description is shown
 in case of incomplete or unknown commands."
-  (when (eq this-command #'self-insert-command)
+  (when (and beg (eq this-command #'self-insert-command))
     (let ((cmd (lookup-key evil-ex-shortcut-map (minibuffer-contents-no-properties))))
       (when (commandp cmd)
         (setq evil--ex-expression `(call-interactively #',cmd))
@@ -465,8 +465,9 @@ in case of incomplete or unknown commands."
 (defun evil-ex-teardown ()
   "Deinitialize Ex minibuffer.
 Clean up everything set up by `evil-ex-setup'."
-  ;; Call ex--update one last time, in case after-change-functions are combined
-  (evil--ex-update)
+  (when (eq this-command #'exit-minibuffer)
+    ;; Call ex--update one last time, in case after-change-functions are combined
+    (evil--ex-update))
   (let ((runner (evil-ex-argument-handler-runner evil--ex-argument-handler)))
     (when runner (funcall runner 'stop))))
 
